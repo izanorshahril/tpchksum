@@ -9,9 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@types/js-sha1": "^0.6.3",
     "crypto-js": "^4.2.0",
-    "js-sha1": "^0.7.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.487.0",
     "next": "15.2.4",

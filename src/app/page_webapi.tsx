@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect for crypto check
 import JSZip from 'jszip';
-import sha1 from 'js-sha1'; // Revert to standard ES module import
+// Removed: import CryptoJS from 'crypto-js';
 
 interface FileData {
   folderName: string; // Will be like 'uploads/', 'uploads/Cfg/'
@@ -29,7 +29,15 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [baseFileName1, setBaseFileName1] = useState<string>('');
   const [baseFileName2, setBaseFileName2] = useState<string>('');
-  // Removed isCryptoAvailable state and useEffect
+  const [isCryptoAvailable, setIsCryptoAvailable] = useState(true); // Check for crypto API
+
+  useEffect(() => {
+    // Check if crypto API is available (it should be in modern browsers/secure contexts)
+    if (!window.crypto || !window.crypto.subtle) {
+      setError('Web Crypto API not available. Please use a modern browser over HTTPS or ensure your local server runs on HTTPS.');
+      setIsCryptoAvailable(false);
+    }
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, fileNumber: 1 | 2) => {
     const file = event.target.files?.[0];
@@ -59,15 +67,19 @@ export default function Home() {
       const content = await file.arrayBuffer();
       const loadedZip = await zip.loadAsync(content);
 
-      // Removed crypto check
+      if (!isCryptoAvailable) {
+        throw new Error('Web Crypto API is required but not available.');
+      }
 
       const filePromises = Object.keys(loadedZip.files).map(async (relativePath) => {
         const zipEntry = loadedZip.files[relativePath];
         if (!zipEntry.dir) {
-          const fileContent = await zipEntry.async('uint8array'); // Get content as Uint8Array for js-sha1
+          const fileContent = await zipEntry.async('uint8array'); // Get content as Uint8Array for Web Crypto
 
-          // Use js-sha1
-          const checksum = sha1(fileContent);
+          // Use Web Crypto API for SHA-1
+          const hashBuffer = await crypto.subtle.digest('SHA-1', fileContent);
+          const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
+          const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
 
           // Extract folder and file name, adjust folder format
           const pathParts = relativePath.split('/');
@@ -108,7 +120,10 @@ export default function Home() {
       setError('Please select the first ZIP file.');
       return;
     }
-    // Removed crypto check
+    if (!isCryptoAvailable) {
+       setError('Web Crypto API is required but not available.');
+       return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -130,7 +145,10 @@ export default function Home() {
       setError('Please select both ZIP files for comparison.');
       return;
     }
-    // Removed crypto check
+     if (!isCryptoAvailable) {
+       setError('Web Crypto API is required but not available.');
+       return;
+    }
 
     setIsComparing(true);
     setError(null);
@@ -282,14 +300,14 @@ export default function Home() {
             type="file"
             accept=".zip"
             onChange={(e) => handleFileChange(e, 1)}
-            // Removed disabled attribute related to crypto
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            disabled={!isCryptoAvailable}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
           />
         </div>
 
         <button
           onClick={handleProcessClick}
-          disabled={isLoading || !file1} // Removed crypto check from disabled
+          disabled={isLoading || !file1 || !isCryptoAvailable}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out mb-4"
         >
           {isLoading ? 'Processing...' : 'Generate Checksum Report'}
@@ -321,8 +339,8 @@ export default function Home() {
              type="file"
             accept=".zip"
             onChange={(e) => handleFileChange(e, 1)} // Reuses the same handler
-            // Removed disabled attribute related to crypto
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            disabled={!isCryptoAvailable}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50"
           />
            {file1 && <span className="text-xs text-gray-500 mt-1 block">Selected: {file1.name}</span>}
          </div>
@@ -336,15 +354,15 @@ export default function Home() {
              type="file"
             accept=".zip"
             onChange={(e) => handleFileChange(e, 2)}
-             // Removed disabled attribute related to crypto
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+            disabled={!isCryptoAvailable}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 disabled:opacity-50"
           />
             {file2 && <span className="text-xs text-gray-500 mt-1 block">Selected: {file2.name}</span>}
          </div>
 
         <button
           onClick={handleCompareClick}
-          disabled={isComparing || !file1 || !file2} // Removed crypto check from disabled
+          disabled={isComparing || !file1 || !file2 || !isCryptoAvailable}
           className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
         >
           {isComparing ? 'Comparing...' : 'Compare Files'}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import JSZip from 'jszip';
-import sha1 from 'js-sha1'; // Revert to standard ES module import
+import CryptoJS from 'crypto-js'; // Re-added crypto-js
 
 interface FileData {
   folderName: string; // Will be like 'uploads/', 'uploads/Cfg/'
@@ -64,10 +64,11 @@ export default function Home() {
       const filePromises = Object.keys(loadedZip.files).map(async (relativePath) => {
         const zipEntry = loadedZip.files[relativePath];
         if (!zipEntry.dir) {
-          const fileContent = await zipEntry.async('uint8array'); // Get content as Uint8Array for js-sha1
+          const fileContent = await zipEntry.async('arraybuffer'); // Get content as ArrayBuffer for crypto-js
 
-          // Use js-sha1
-          const checksum = sha1(fileContent);
+          // Use crypto-js for SHA-1
+          const wordArray = CryptoJS.lib.WordArray.create(fileContent);
+          const checksum = CryptoJS.SHA1(wordArray).toString(CryptoJS.enc.Hex);
 
           // Extract folder and file name, adjust folder format
           const pathParts = relativePath.split('/');
